@@ -1,0 +1,30 @@
+FROM node:22-bookworm-slim AS webdeps
+WORKDIR /app/web
+COPY web/package.json ./
+RUN npm install --omit=dev
+
+FROM texlive/texlive:latest-full
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+
+WORKDIR /app
+COPY texdiff.sh /usr/local/bin/texdiff
+RUN chmod +x /usr/local/bin/texdiff
+
+COPY web /app/web
+COPY --from=webdeps /app/web/node_modules /app/web/node_modules
+
+ENV PORT=8080
+ENV DATA_ROOT=/data
+ENV TEXDIFF_BIN=/usr/local/bin/texdiff
+
+RUN mkdir -p /data/jobs
+
+EXPOSE 8080
+CMD ["node", "/app/web/server.js"]

@@ -2,4 +2,4 @@ tests/fixtures/**/*.aux
 tests/fixtures/**/*.*latexmk
 tests/fixtures/**/*.fls
 tests/fixtures/**/*.log
-tests/fixtures/**/*synctex*
+tests/fixtures/**/*synctex*web/node_modules

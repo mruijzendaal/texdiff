@@ -3,3 +3,4 @@
 out
 work
 *.zip
+web/node_modules

@@ -73,29 +73,49 @@ find_main_tex() {
     return 0
   fi
 
+  # Candidate order: shallowest path first, then alphabetical.
   local candidates=()
-  mapfile -t candidates < <(find "$dir" -type f -name '*.tex' -print)
+  mapfile -t candidates < <(find "$dir" -type f -name '*.tex' -print \
+    | awk -F/ '{ print NF "\t" $0 }' | sort -k1,1n -k2 | cut -f2-)
 
   if [[ ${#candidates[@]} -eq 0 ]]; then
     echo "No .tex files found in $dir" >&2
     return 1
   fi
 
-  local documentclass_matches=()
-  local f
+  # Preference: main*.tex with \documentclass, any file with \documentclass,
+  # any main*.tex, then simply the first .tex file.
+  local main_named=()
+  local main_class=()
+  local any_class=()
+  local f base
   for f in "${candidates[@]}"; do
+    base="$(basename "$f")"
+    base="${base,,}"
+    local is_main="false"
+    local has_class="false"
+    if [[ "$base" =~ ^main.*\.tex$ ]]; then
+      is_main="true"
+      main_named+=("$f")
+    fi
     if grep -q '\\documentclass' "$f"; then
-      documentclass_matches+=("$f")
+      has_class="true"
+      any_class+=("$f")
+    fi
+    if [[ "$is_main" == "true" && "$has_class" == "true" ]]; then
+      main_class+=("$f")
     fi
   done
 
   local selected=""
-  if [[ ${#documentclass_matches[@]} -eq 1 ]]; then
-    selected="${documentclass_matches[0]}"
-  elif [[ ${#documentclass_matches[@]} -gt 1 ]]; then
-    selected="$(printf '%s\n' "${documentclass_matches[@]}" | sort | head -n1)"
+  if [[ ${#main_class[@]} -gt 0 ]]; then
+    selected="${main_class[0]}"
+  elif [[ ${#any_class[@]} -gt 0 ]]; then
+    selected="${any_class[0]}"
+  elif [[ ${#main_named[@]} -gt 0 ]]; then
+    selected="${main_named[0]}"
   else
-    selected="$(printf '%s\n' "${candidates[@]}" | sort | head -n1)"
+    selected="${candidates[0]}"
   fi
 
   selected="${selected#"$dir"/}"

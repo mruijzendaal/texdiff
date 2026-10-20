@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>texdiff web</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["ui-sans-serif", "system-ui", "sans-serif"],
+            },
+            boxShadow: {
+              soft: "0 20px 50px rgba(0, 0, 0, 0.10)",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <div class="mx-auto min-h-screen w-full max-w-[1800px] px-4 py-6 lg:px-8">
+      <header class="rounded-2xl bg-white p-6 shadow-soft">
+        <h1 class="text-3xl font-black tracking-tight">texdiff web</h1>
+        <p class="mt-2 text-sm text-slate-600">
+          Drop two Overleaf ZIP files, configure all supported flags, run with
+          live logs, then open or download the resulting PDF.
+        </p>
+      </header>
+
+      <main class="mt-6 grid gap-6 lg:grid-cols-12">
+        <aside
+          class="space-y-6 lg:col-span-5 2xl:sticky 2xl:top-6 2xl:self-start"
+        >
+          <details
+            id="uploadSection"
+            open
+            class="rounded-2xl bg-white shadow-soft"
+          >
+            <summary
+              class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4"
+            >
+              <span class="text-base font-bold">1) Upload Inputs</span>
+              <span
+                id="uploadState"
+                class="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700"
+                >pending</span
+              >
+            </summary>
+            <div class="border-t border-slate-200 px-5 py-5">
+              <div id="sourceToggle" class="mb-4 hidden gap-4 text-sm font-semibold text-slate-700">
+                <label class="inline-flex items-center gap-2">
+                  <input type="radio" name="source" value="zip" checked /> ZIP files
+                </label>
+                <label class="ml-4 inline-flex items-center gap-2">
+                  <input type="radio" name="source" value="git" /> Git repository
+                </label>
+              </div>
+
+              <p id="repoError" class="mb-4 hidden rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"></p>
+
+              <label id="repoSelectWrap" class="mb-4 hidden text-sm font-semibold text-slate-700">
+                Repository
+                <select
+                  id="repoSelect"
+                  class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                ></select>
+              </label>
+
+              <div id="gitPanel" class="hidden grid gap-4 sm:grid-cols-2">
+                <label class="text-sm font-semibold text-slate-700">
+                  Old (commit / tag / branch)
+                  <select
+                    id="oldRef"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  ></select>
+                </label>
+                <label class="text-sm font-semibold text-slate-700">
+                  New (commit / tag / branch)
+                  <select
+                    id="newRef"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  ></select>
+                </label>
+              </div>
+
+              <div id="zipPanel" class="grid gap-4 sm:grid-cols-2">
+                <label
+                  id="oldZone"
+                  class="group flex h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-4 text-center transition hover:border-slate-500 hover:bg-slate-100"
+                >
+                  <input id="oldZip" type="file" accept=".zip" class="hidden" />
+                  <span
+                    class="text-xs font-semibold uppercase tracking-widest text-slate-500"
+                    >Old ZIP</span
+                  >
+                  <span
+                    id="oldZipLabel"
+                    class="mt-2 text-sm font-medium text-slate-700"
+                    >Drop or click</span
+                  >
+                </label>
+                <label
+                  id="newZone"
+                  class="group flex h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-4 text-center transition hover:border-slate-500 hover:bg-slate-100"
+                >
+                  <input id="newZip" type="file" accept=".zip" class="hidden" />
+                  <span
+                    class="text-xs font-semibold uppercase tracking-widest text-slate-500"
+                    >New ZIP</span
+                  >
+                  <span
+                    id="newZipLabel"
+                    class="mt-2 text-sm font-medium text-slate-700"
+                    >Drop or click</span
+                  >
+                </label>
+              </div>
+            </div>
+          </details>
+
+          <details
+            id="configSection"
+            open
+            class="rounded-2xl bg-white shadow-soft"
+          >
+            <summary
+              class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4"
+            >
+              <span class="text-base font-bold">2) Configure Command</span>
+              <span
+                id="configState"
+                class="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700"
+                >ready</span
+              >
+            </summary>
+            <div class="space-y-4 border-t border-slate-200 px-5 py-5">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label class="text-sm font-semibold text-slate-700">
+                  Main for both
+                  <input
+                    id="mainFile"
+                    type="text"
+                    placeholder="main.tex"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  />
+                </label>
+                <label class="text-sm font-semibold text-slate-700">
+                  Main old
+                  <input
+                    id="mainOldFile"
+                    type="text"
+                    placeholder="main_old.tex"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  />
+                </label>
+              </div>
+
+              <label class="text-sm font-semibold text-slate-700">
+                Main new
+                <input
+                  id="mainNewFile"
+                  type="text"
+                  placeholder="main_new.tex"
+                  class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                />
+              </label>
+
+              <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <label class="text-sm font-semibold text-slate-700">
+                  Compile mode
+                  <select
+                    id="compileMode"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  >
+                    <option value="local">local</option>
+                    <option value="auto">auto</option>
+                    <option value="docker">docker</option>
+                  </select>
+                </label>
+                <label class="text-sm font-semibold text-slate-700">
+                  LaTeX engine
+                  <select
+                    id="latexEngine"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  >
+                    <option value="auto">auto</option>
+                    <option value="pdflatex">pdflatex</option>
+                    <option value="xelatex">xelatex</option>
+                    <option value="lualatex">lualatex</option>
+                  </select>
+                </label>
+                <label class="text-sm font-semibold text-slate-700">
+                  Output mode
+                  <select
+                    id="outputMode"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  >
+                    <option value="minimal">minimal</option>
+                    <option value="debug">debug</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label class="text-sm font-semibold text-slate-700">
+                  Out dir (relative)
+                  <input
+                    id="outDir"
+                    type="text"
+                    value="out"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  />
+                </label>
+                <label class="text-sm font-semibold text-slate-700">
+                  Work dir (relative)
+                  <input
+                    id="workDir"
+                    type="text"
+                    value="work"
+                    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                  />
+                </label>
+              </div>
+
+              <label class="text-sm font-semibold text-slate-700">
+                Docker image (used when compile mode is docker)
+                <input
+                  id="dockerImage"
+                  type="text"
+                  placeholder="texlive/texlive:latest-full"
+                  class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                />
+              </label>
+
+              <label
+                class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700"
+              >
+                <input
+                  id="keepLog"
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-slate-300"
+                />
+                Keep diff.log in minimal mode
+              </label>
+
+              <label class="text-sm font-semibold text-slate-700">
+                Repeatable latexdiff args (one per line)
+                <textarea
+                  id="latexdiffArgs"
+                  rows="4"
+                  placeholder="--exclude-safecmd=ce"
+                  class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs outline-none focus:border-slate-700"
+                ></textarea>
+              </label>
+
+              <div class="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  id="runBtn"
+                  class="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-700"
+                >
+                  Run texdiff
+                </button>
+                <span
+                  id="statusBadge"
+                  class="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-700"
+                  >idle</span
+                >
+              </div>
+
+              <p class="text-xs text-slate-500">
+                All out/work paths are forced to remain inside each job
+                workspace for safety.
+              </p>
+            </div>
+          </details>
+
+          <p
+            id="errorText"
+            class="hidden rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+          ></p>
+        </aside>
+
+        <section class="space-y-6 lg:col-span-7">
+          <details
+            id="runSection"
+            open
+            class="rounded-2xl bg-white shadow-soft"
+          >
+            <summary
+              class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4"
+            >
+              <span class="text-base font-bold">3) Compilation</span>
+              <span
+                id="runState"
+                class="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700"
+                >waiting</span
+              >
+            </summary>
+            <div class="border-t border-slate-200 px-5 py-5">
+              <pre
+                id="logs"
+                class="h-72 overflow-auto rounded-xl bg-slate-950 p-4 font-mono text-xs leading-5 text-slate-100 xl:h-[360px]"
+              ></pre>
+            </div>
+          </details>
+
+          <details
+            id="resultSection"
+            open
+            class="rounded-2xl bg-white shadow-soft"
+          >
+            <summary
+              class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4"
+            >
+              <span class="text-base font-bold">4) Result PDF</span>
+              <span
+                id="resultState"
+                class="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700"
+                >pending</span
+              >
+            </summary>
+            <div class="space-y-4 border-t border-slate-200 px-5 py-5">
+              <div class="flex flex-wrap gap-3">
+                <a
+                  id="pdfLink"
+                  class="pointer-events-none rounded-lg bg-slate-300 px-4 py-2 text-sm font-bold text-slate-500"
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Open PDF</a
+                >
+                <a
+                  id="downloadPdfLink"
+                  class="pointer-events-none rounded-lg bg-slate-300 px-4 py-2 text-sm font-bold text-slate-500"
+                  href="#"
+                  >Download PDF</a
+                >
+              </div>
+
+              <div class="overflow-hidden rounded-xl border border-slate-300">
+                <iframe
+                  id="pdfPreview"
+                  title="diff pdf preview"
+                  class="h-[420px] w-full bg-white xl:h-[560px]"
+                  src="about:blank"
+                ></iframe>
+              </div>
+            </div>
+          </details>
+        </section>
+      </main>
+    </div>
+
+    <script src="/ui.js"></script>
+  </body>
+</html>
